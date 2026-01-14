@@ -18,6 +18,8 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#ifndef LINKEDLIST_H
+#define LINKEDLIST_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -212,7 +214,8 @@ const LlNode *ll_prev(const LlNode *node);
     - -1 if ll is NULL
 
   Warning:
-    - Not safe for cryptographic secrets; runtime depends on number of matching bytes.
+    - Not safe for cryptographic secrets; runtime depends on number of matching
+bytes.
 -----------------------------------------------------------------------------*/
 int ll_contains(LinkedList *ll, const void *elem);
 
@@ -245,6 +248,7 @@ int ll_contains_secure(LinkedList *ll, const void *elem);
     - After calling, list is empty and count is zero.
 -----------------------------------------------------------------------------*/
 void ll_free(LinkedList *ll);
+#endif // !LINKEDLIST_H
 
 #if (defined(LINKEDLIST_IMPLEMENTATION))
 LinkedList linkedlist_new(size_t elem_size) {

@@ -19,6 +19,13 @@ run:
 	@echo " "
 	$(BUILD)exec
 
+runsudo:
+	make
+	@echo "Compiled!!"
+	@echo "Running with sudo permissions!"
+	@echo " "
+	sudo $(BUILD)exec
+
 debug:
 	@echo "Compiling with debug symbols..."
 	make DEBUG=1
