@@ -38,6 +38,16 @@
 #define LINKEDLIST_IMPLEMENTATION
 #endif
 
+#include "./seakcutils/channels/channels.h"
+#ifndef CHANNEL_BASICS_IMPLEMENTATION
+#define CHANNEL_BASICS_IMPLEMENTATION
+#endif
+
+#include "./seakcutils/channels/spmc.h"
+#ifndef SPMC_IMPLEMENTATION
+#define SPMC_IMPLEMENTATION
+#endif
+
 #ifndef UNUSED
 #define UNUSED(v) (void)v
 #endif

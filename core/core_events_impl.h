@@ -4,6 +4,7 @@
 #include "./core_events.h"
 #include "core_base.h"
 #include "core_sys_input.h"
+#include <stdlib.h>
 #include <string.h>
 
 #if defined(__linux__)
@@ -28,6 +29,12 @@ SAE_EventSystem sae_get_event_system(void) {
     SAE_ERROR("[FATAL] Failed to create epoll instance for events system")
   }
   event_sys.linux_epoll.epoll_fd = epoll;
+
+  ChannelSpmc *chan = channel_create_spmc(5000, sizeof(SAE_Event));
+  SAE_CHECK_ALLOC(chan, "Event System Channel Queue")
+  SenderSpmc *dispatcher = spmc_get_sender(chan);
+  event_sys.linux_epoll.chan_queue = chan;
+  event_sys.linux_epoll.dispatcher = dispatcher;
 
 #elif defined(_WIN64)
 #elif defined(__APPLE__) && defined(__MACH__)
@@ -130,6 +137,57 @@ int sae_event_system_rmv_inputdevice(SAE_EventSystem *event_sys,
 #endif
 
   return 1;
+}
+
+// return values:
+// -1  : invalid arguments;
+// 0   : all devices were removed successfully
+// > 1 : number of input devices failed to remove
+int sae_event_system_rmv_inputdevice_all(SAE_EventSystem *event_sys,
+                                         InputDeviceList *device_list) {
+  if (!event_sys || !device_list)
+    return -1;
+
+  int failed_q = 0;
+
+  const LlNode *node = ll_iterable(&device_list->devices);
+  for (usize x = 0; x < ll_len(&device_list->devices); x += 1) {
+#if defined(__linux__)
+    InputDevice *device = (InputDevice *)node->elem;
+    struct epoll_event ev;
+    int res = epoll_ctl(event_sys->linux_epoll.epoll_fd, EPOLL_CTL_DEL,
+                        device->linux_fd, &ev);
+    if (res == -1) {
+      SAE_ERROR_ARGS(
+          "[ERROR] Could not remove InputDevice from EventSystem\n[ERROR] "
+          "System message: %s\n[ERROR] InputDevice id: %ld",
+          strerror(errno), device->id)
+      failed_q += 1;
+    }
+
+#elif defined(_WIN64)
+#elif defined(__APPLE__) && defined(__MACH__)
+#else
+#error "Unsupported operating system... :/"
+#endif
+
+    node = ll_next(node);
+  }
+
+  return failed_q;
+}
+
+void sae_free_event_system(SAE_EventSystem event_sys) {
+#if defined(__linux__)
+  close(event_sys.linux_epoll.epoll_fd);
+  spmc_close(event_sys.linux_epoll.chan_queue);
+  spmc_destroy(event_sys.linux_epoll.chan_queue);
+  free(event_sys.linux_epoll.dispatcher);
+#elif defined(_WIN64)
+#elif defined(__APPLE__) && defined(__MACH__)
+#else
+#error "Unsupported operating system... :/"
+#endif
 }
 
 #endif

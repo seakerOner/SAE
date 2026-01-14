@@ -1,5 +1,7 @@
 #ifndef CORE_EVENTS_H
 #define CORE_EVENTS_H
+#include "seakcutils/channels/channels.h"
+#include "seakcutils/channels/spmc.h"
 
 #include "./core_base.h"
 #include "core_sys_input.h"
@@ -52,10 +54,14 @@ typedef struct SAE_Event_t {
 typedef union SAE_EventSystem_t {
   struct {
     int epoll_fd;
+    ChannelSpmc *chan_queue;
+    SenderSpmc *dispatcher;
   } linux_epoll;
+
   struct { // placeholder
     void *epoll_handle;
   } windows_epoll;
+
   struct { // placeholder
     void *epoll_handle;
   } apple_epoll;
@@ -71,5 +77,10 @@ int sae_event_system_add_inputdevice_list(SAE_EventSystem *event_sys,
 
 int sae_event_system_rmv_inputdevice(SAE_EventSystem *event_sys,
                                      InputDevice *device);
+
+int sae_event_system_rmv_inputdevice_all(SAE_EventSystem *event_sys,
+                                         InputDeviceList *device_list);
+
+void sae_free_event_system(SAE_EventSystem event_sys);
 
 #endif

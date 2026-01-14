@@ -37,7 +37,7 @@ int ascii_contains(const ascii *str, const usize _str_n, const ascii *comp,
 
   for (usize x = 0; x < _str_n; x += 1)
     for (usize i = 0; i < _comp_n; i += 1)
-      if (str[x + i] != comp[i]) {
+      if (x + i >= _str_n || str[x + i] != comp[i]) {
         acum = 0;
         break;
       } else {

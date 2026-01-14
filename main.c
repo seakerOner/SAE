@@ -54,6 +54,9 @@ int main() {
 
   sae_event_system_add_inputdevice_list(&ev_sys, &input_list);
 
+  sae_event_system_rmv_inputdevice_all(&ev_sys, &input_list);
+
+  sae_free_event_system(ev_sys);
   sae_free_input_devices_list(input_list);
   sae_free_available_peripherals_list(peri_list);
   return 0;
