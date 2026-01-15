@@ -1,9 +1,10 @@
 #ifndef CORE_EVENTS_IMPLEMENTATION
 #define CORE_EVENTS_IMPLEMENTATION
 
+#include "./core_base.h"
 #include "./core_events.h"
-#include "core_base.h"
-#include "core_sys_input.h"
+#include "./core_sys_input.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,6 +13,9 @@
 #include <errno.h>
 #include <linux/input.h>
 #include <sys/epoll.h>
+#include <unistd.h>
+
+#define SAE_LINUX_MAX_EPOLL_EVENTS 64
 
 #elif defined(_WIN64)
 #elif defined(__APPLE__) && defined(__MACH__)
@@ -183,6 +187,405 @@ void sae_free_event_system(SAE_EventSystem event_sys) {
   spmc_close(event_sys.linux_epoll.chan_queue);
   spmc_destroy(event_sys.linux_epoll.chan_queue);
   free(event_sys.linux_epoll.dispatcher);
+#elif defined(_WIN64)
+#elif defined(__APPLE__) && defined(__MACH__)
+#else
+#error "Unsupported operating system... :/"
+#endif
+}
+
+// must be set on a isolated thread
+void sae_event_system_execute(SAE_EventSystem event_sys) {
+#if defined(__linux__)
+  int epoll_fd = event_sys.linux_epoll.epoll_fd;
+  SenderSpmc *dispatcher = event_sys.linux_epoll.dispatcher;
+  ChannelSpmc *chan_queue = event_sys.linux_epoll.chan_queue;
+
+  struct epoll_event events[SAE_LINUX_MAX_EPOLL_EVENTS];
+  while (spmc_is_closed(chan_queue) == OPEN) {
+    int res =
+        epoll_pwait(epoll_fd, events, SAE_LINUX_MAX_EPOLL_EVENTS, -1, NULL);
+
+    if (res < 0) {
+      SAE_ERROR_ARGS(
+          "[FATAL] An Error ocurred on Linux epoll EventSystem\n[FATAL] "
+          "System message: %s",
+          strerror(errno))
+
+    } else if (res > 0) { // N file descriptors ready to be read
+      for (int x = 0; x < res; x += 1) {
+        InputDevice *i_device = (InputDevice *)events[x].data.ptr;
+        struct input_event iev;
+        int b_read = 0;
+        do {
+          b_read += read(i_device->linux_fd, &iev, sizeof(struct input_event));
+        } while (b_read != sizeof(struct input_event));
+
+        SAE_Event event;
+        event.device_id = i_device->id;
+        event.timestamp = iev.time.tv_sec;
+
+        switch (iev.type) {
+          // keyboard
+        case EV_KEY:
+
+          // key event
+          switch (iev.value) {
+          case 0:
+            event.type = SAE_EVENT_KEY_UP;
+            break;
+          case 1:
+            event.type = SAE_EVENT_KEY_DOWN;
+            break;
+          }
+
+          // key event
+          switch (iev.code) {
+          case KEY_ESC:
+            event.keypad.key = SAE_KEY_ESC;
+            break;
+          case KEY_1:
+            event.keypad.key = SAE_KEY_1;
+            break;
+          case KEY_2:
+            event.keypad.key = SAE_KEY_2;
+            break;
+          case KEY_3:
+            event.keypad.key = SAE_KEY_3;
+            break;
+          case KEY_4:
+            event.keypad.key = SAE_KEY_4;
+            break;
+          case KEY_5:
+            event.keypad.key = SAE_KEY_5;
+            break;
+          case KEY_6:
+            event.keypad.key = SAE_KEY_6;
+            break;
+          case KEY_7:
+            event.keypad.key = SAE_KEY_7;
+            break;
+          case KEY_8:
+            event.keypad.key = SAE_KEY_8;
+            break;
+          case KEY_9:
+            event.keypad.key = SAE_KEY_9;
+            break;
+          case KEY_0:
+            event.keypad.key = SAE_KEY_0;
+            break;
+          case KEY_MINUS:
+            event.keypad.key = SAE_KEY_MINUS;
+            break;
+          case KEY_EQUAL:
+            event.keypad.key = SAE_KEY_EQUAL;
+            break;
+          case KEY_BACKSPACE:
+            event.keypad.key = SAE_KEY_BACKSPACE;
+            break;
+          case KEY_TAB:
+            event.keypad.key = SAE_KEY_TAB;
+            break;
+          case KEY_Q:
+            event.keypad.key = SAE_KEY_Q;
+            break;
+          case KEY_W:
+            event.keypad.key = SAE_KEY_W;
+            break;
+          case KEY_E:
+            event.keypad.key = SAE_KEY_E;
+            break;
+          case KEY_R:
+            event.keypad.key = SAE_KEY_R;
+            break;
+          case KEY_T:
+            event.keypad.key = SAE_KEY_T;
+            break;
+          case KEY_Y:
+            event.keypad.key = SAE_KEY_Y;
+            break;
+          case KEY_U:
+            event.keypad.key = SAE_KEY_U;
+            break;
+          case KEY_I:
+            event.keypad.key = SAE_KEY_I;
+            break;
+          case KEY_O:
+            event.keypad.key = SAE_KEY_O;
+            break;
+          case KEY_P:
+            event.keypad.key = SAE_KEY_P;
+            break;
+          case KEY_LEFTBRACE:
+            event.keypad.key = SAE_KEY_LEFTBRACE;
+            break;
+          case KEY_RIGHTBRACE:
+            event.keypad.key = SAE_KEY_RIGHTBRACE;
+            break;
+          case KEY_ENTER:
+            event.keypad.key = SAE_KEY_ENTER;
+            break;
+          case KEY_LEFTCTRL:
+            event.keypad.key = SAE_KEY_LEFTCTRL;
+            break;
+          case KEY_A:
+            event.keypad.key = SAE_KEY_A;
+            break;
+          case KEY_S:
+            event.keypad.key = SAE_KEY_S;
+            break;
+          case KEY_D:
+            event.keypad.key = SAE_KEY_D;
+            break;
+          case KEY_F:
+            event.keypad.key = SAE_KEY_F;
+            break;
+          case KEY_G:
+            event.keypad.key = SAE_KEY_G;
+            break;
+          case KEY_H:
+            event.keypad.key = SAE_KEY_H;
+            break;
+          case KEY_J:
+            event.keypad.key = SAE_KEY_J;
+            break;
+          case KEY_K:
+            event.keypad.key = SAE_KEY_K;
+            break;
+          case KEY_L:
+            event.keypad.key = SAE_KEY_L;
+            break;
+          case KEY_SEMICOLON:
+            event.keypad.key = SAE_KEY_SEMICOLON;
+            break;
+          case KEY_APOSTROPHE:
+            event.keypad.key = SAE_KEY_APOSTROPHE;
+            break;
+          case KEY_GRAVE:
+            event.keypad.key = SAE_KEY_GRAVE;
+            break;
+          case KEY_LEFTSHIFT:
+            event.keypad.key = SAE_KEY_LEFTSHIFT;
+            break;
+          case KEY_BACKSLASH:
+            event.keypad.key = SAE_KEY_BACKSLASH;
+            break;
+          case KEY_Z:
+            event.keypad.key = SAE_KEY_Z;
+            break;
+          case KEY_X:
+            event.keypad.key = SAE_KEY_X;
+            break;
+          case KEY_C:
+            event.keypad.key = SAE_KEY_C;
+            break;
+          case KEY_V:
+            event.keypad.key = SAE_KEY_V;
+            break;
+          case KEY_B:
+            event.keypad.key = SAE_KEY_B;
+            break;
+          case KEY_N:
+            event.keypad.key = SAE_KEY_N;
+            break;
+          case KEY_M:
+            event.keypad.key = SAE_KEY_M;
+            break;
+          case KEY_COMMA:
+            event.keypad.key = SAE_KEY_COMMA;
+            break;
+          case KEY_DOT:
+            event.keypad.key = SAE_KEY_DOT;
+            break;
+          case KEY_SLASH:
+            event.keypad.key = SAE_KEY_SLASH;
+            break;
+          case KEY_RIGHTSHIFT:
+            event.keypad.key = SAE_KEY_RIGHTSHIFT;
+            break;
+          case KEY_KPASTERISK:
+            event.keypad.key = SAE_KEY_KPASTERISK;
+            break;
+          case KEY_LEFTALT:
+            event.keypad.key = SAE_KEY_LEFTALT;
+            break;
+          case KEY_SPACE:
+            event.keypad.key = SAE_KEY_SPACE;
+            break;
+          case KEY_CAPSLOCK:
+            event.keypad.key = SAE_KEY_CAPSLOCK;
+            break;
+          case KEY_F1:
+            event.keypad.key = SAE_KEY_F1;
+            break;
+          case KEY_F2:
+            event.keypad.key = SAE_KEY_F2;
+            break;
+          case KEY_F3:
+            event.keypad.key = SAE_KEY_F3;
+            break;
+          case KEY_F4:
+            event.keypad.key = SAE_KEY_F4;
+            break;
+          case KEY_F5:
+            event.keypad.key = SAE_KEY_F5;
+            break;
+          case KEY_F6:
+            event.keypad.key = SAE_KEY_F6;
+            break;
+          case KEY_F7:
+            event.keypad.key = SAE_KEY_F7;
+            break;
+          case KEY_F8:
+            event.keypad.key = SAE_KEY_F8;
+            break;
+          case KEY_F9:
+            event.keypad.key = SAE_KEY_F9;
+            break;
+          case KEY_F10:
+            event.keypad.key = SAE_KEY_F10;
+            break;
+          case KEY_NUMLOCK:
+            event.keypad.key = SAE_KEY_NUMLOCK;
+            break;
+          case KEY_SCROLLLOCK:
+            event.keypad.key = SAE_KEY_SCROLLLOCK;
+            break;
+          case KEY_KP7:
+            event.keypad.key = SAE_KEY_KP7;
+            break;
+          case KEY_KP8:
+            event.keypad.key = SAE_KEY_KP8;
+            break;
+          case KEY_KP9:
+            event.keypad.key = SAE_KEY_KP9;
+            break;
+          case KEY_KPMINUS:
+            event.keypad.key = SAE_KEY_KPMINUS;
+            break;
+          case KEY_KP4:
+            event.keypad.key = SAE_KEY_KP4;
+            break;
+          case KEY_KP5:
+            event.keypad.key = SAE_KEY_KP5;
+            break;
+          case KEY_KP6:
+            event.keypad.key = SAE_KEY_KP6;
+            break;
+          case KEY_KPPLUS:
+            event.keypad.key = SAE_KEY_KPPLUS;
+            break;
+          case KEY_KP1:
+            event.keypad.key = SAE_KEY_KP1;
+            break;
+          case KEY_KP2:
+            event.keypad.key = SAE_KEY_KP2;
+            break;
+          case KEY_KP3:
+            event.keypad.key = SAE_KEY_KP3;
+            break;
+          case KEY_KP0:
+            event.keypad.key = SAE_KEY_KP0;
+            break;
+          case KEY_KPDOT:
+            event.keypad.key = SAE_KEY_KPDOT;
+            break;
+          case KEY_F11:
+            event.keypad.key = SAE_KEY_F11;
+            break;
+          case KEY_F12:
+            event.keypad.key = SAE_KEY_F12;
+            break;
+          case KEY_RIGHTCTRL:
+            event.keypad.key = SAE_KEY_RIGHTCTRL;
+            break;
+          case KEY_RIGHTALT:
+            event.keypad.key = SAE_KEY_RIGHTALT;
+            break;
+          case KEY_HOME:
+            event.keypad.key = SAE_KEY_HOME;
+            break;
+          case KEY_UP:
+            event.keypad.key = SAE_KEY_UP;
+            break;
+          case KEY_PAGEUP:
+            event.keypad.key = SAE_KEY_PAGEUP;
+            break;
+          case KEY_LEFT:
+            event.keypad.key = SAE_KEY_LEFT;
+            break;
+          case KEY_RIGHT:
+            event.keypad.key = SAE_KEY_RIGHT;
+            break;
+          case KEY_END:
+            event.keypad.key = SAE_KEY_END;
+            break;
+          case KEY_DOWN:
+            event.keypad.key = SAE_KEY_DOWN;
+            break;
+          case KEY_PAGEDOWN:
+            event.keypad.key = SAE_KEY_PAGEDOWN;
+            break;
+          case KEY_INSERT:
+            event.keypad.key = SAE_KEY_INSERT;
+            break;
+          case KEY_DELETE:
+            event.keypad.key = SAE_KEY_DELETE;
+            break;
+          case KEY_MUTE:
+            event.keypad.key = SAE_KEY_MUTE;
+            break;
+          case KEY_VOLUMEDOWN:
+            event.keypad.key = SAE_KEY_VOLUMEDOWN;
+            break;
+          case KEY_VOLUMEUP:
+            event.keypad.key = SAE_KEY_VOLUMEUP;
+            break;
+          case KEY_POWER:
+            event.keypad.key = SAE_KEY_POWER;
+            break;
+          case KEY_PAUSE:
+            event.keypad.key = SAE_KEY_PAUSE;
+            break;
+          }
+
+          // remove this, just a sanity check, very nice
+          switch (event.keypad.key) {
+          case SAE_KEY_H:
+            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
+            printf("[KEYPRESSED] H\n");
+            break;
+          case SAE_KEY_J:
+            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
+            printf("[KEYPRESSED] J\n");
+            break;
+          case SAE_KEY_K:
+            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
+            printf("[KEYPRESSED] K\n");
+            break;
+          case SAE_KEY_L:
+            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
+            printf("[KEYPRESSED] L\n");
+            break;
+          case SAE_KEY_LEFTCTRL:
+            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
+            printf("[KEYPRESSED] LEFTCTRL\n");
+            break;
+
+          default:
+            break;
+          }
+
+        default:
+          printf("OTHER EVENT HAPPENED\n");
+          break;
+        }
+      }
+
+    } else if (res == 0) { // no file descriptors ready
+      cpu_relax();
+    }
+  }
 #elif defined(_WIN64)
 #elif defined(__APPLE__) && defined(__MACH__)
 #else

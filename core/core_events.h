@@ -4,7 +4,9 @@
 #include "seakcutils/channels/spmc.h"
 
 #include "./core_base.h"
-#include "core_sys_input.h"
+#include "./core_sys_input.h"
+
+#include "../sae_input_list_names.h"
 
 #if defined(__linux__)
 
@@ -35,7 +37,7 @@ typedef struct SAE_Event_t {
 
   union {
     struct {
-      u16 key;
+      SAE_Key key;
     } keypad;
     struct {
       i32 dx, dy;
@@ -82,5 +84,7 @@ int sae_event_system_rmv_inputdevice_all(SAE_EventSystem *event_sys,
                                          InputDeviceList *device_list);
 
 void sae_free_event_system(SAE_EventSystem event_sys);
+
+void sae_event_system_execute(SAE_EventSystem event_sys);
 
 #endif

@@ -54,6 +54,8 @@ int main() {
 
   sae_event_system_add_inputdevice_list(&ev_sys, &input_list);
 
+  sae_event_system_execute(ev_sys);
+
   sae_event_system_rmv_inputdevice_all(&ev_sys, &input_list);
 
   sae_free_event_system(ev_sys);
