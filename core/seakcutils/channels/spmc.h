@@ -111,7 +111,8 @@ ChannelSpmc *channel_create_spmc(const size_t capacity, const size_t elem_size);
 
   Notes:
     - After closing, spmc_send will return CHANNEL_ERR_CLOSED.
-    - Receivers may continue to drain the channel until all elements are consumed.
+    - Receivers may continue to drain the channel until all elements are
+consumed.
 -----------------------------------------------------------------------------*/
 void spmc_close(ChannelSpmc *chan);
 
@@ -143,7 +144,6 @@ ChanState spmc_is_closed(const ChannelSpmc *chan);
     - After this call, the channel pointer becomes invalid.
 -----------------------------------------------------------------------------*/
 void spmc_destroy(ChannelSpmc *chan);
-
 
 typedef struct SenderSpmc_t SenderSpmc;
 typedef struct ReceiverSpmc_t ReceiverSpmc;
@@ -227,6 +227,8 @@ int spmc_send(SenderSpmc *sender, const void *element);
     - Each receiver independently consumes elements.
 -----------------------------------------------------------------------------*/
 int spmc_recv(ReceiverSpmc *receiver, void *out);
+
+int spmc_try_recv(ReceiverSpmc *receiver, void *out);
 
 #endif
 
@@ -422,4 +424,39 @@ int spmc_recv(ReceiverSpmc *receiver, void *out) {
                         memory_order_release);
   return CHANNEL_OK;
 };
+
+int spmc_try_recv(ReceiverSpmc *receiver, void *out) {
+  if (!receiver) {
+    return CHANNEL_ERR_NULL;
+  }
+  if (atomic_load_explicit(&receiver->receiver_state, memory_order_acquire) ==
+      CLOSED) {
+    return CHANNEL_ERR_CLOSED;
+  }
+  size_t tail = atomic_load_explicit(receiver->tail, memory_order_acquire);
+
+  Slot *slot = &receiver->buffer[tail % receiver->inner_c_cap];
+
+  if (atomic_load_explicit(&slot->seq, memory_order_acquire) != tail + 1) {
+    return CHANNEL_ERR_EMPTY;
+  }
+
+  // try to own the position
+  if (atomic_load_explicit(&receiver->receiver_state, memory_order_acquire) ==
+      CLOSED) {
+    return CHANNEL_ERR_CLOSED;
+  }
+  if (!atomic_compare_exchange_strong_explicit(receiver->tail, &tail, tail + 1,
+                                               memory_order_acq_rel,
+                                               memory_order_relaxed))
+    return CHANNEL_ERR_EMPTY; // Another consumer won the race
+
+  memcpy(out, slot->data, receiver->elem_size);
+
+  // set slot for next future cycle
+  atomic_store_explicit(&slot->seq, tail + receiver->inner_c_cap,
+                        memory_order_release);
+  return CHANNEL_OK;
+}
+
 #endif

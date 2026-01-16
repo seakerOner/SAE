@@ -28,6 +28,11 @@
 #define ARENA_IMPLEMENTATION
 #endif
 
+#include "./seakcutils/arenas/r_arena.h"
+#ifndef REGION_ARENA_IMPLEMENTATION
+#define REGION_ARENA_IMPLEMENTATION
+#endif
+
 #include "./seakcutils/data_structures/deque.h"
 #ifndef DEQUE_IMPLEMENTATION
 #define DEQUE_IMPLEMENTATION
@@ -48,11 +53,25 @@
 #define SPMC_IMPLEMENTATION
 #endif
 
+#include "./seakcutils/channels/mpmc.h"
+#ifndef MPMC_IMPLEMENTATION
+#define MPMC_IMPLEMENTATION
+#endif
+
+#include "./seakcutils/threadpool/threadpool.h"
+#ifndef THREADPOOL_IMPLEMENTATION
+#define THREADPOOL_IMPLEMENTATION
+#endif
+
+#include "./seakcutils/job_system/jobsystem.h"
+#ifndef JOBSYSTEM_IMPLEMENTATION
+#define JOBSYSTEM_IMPLEMENTATION
+#endif
+
 #ifndef UNUSED
 #define UNUSED(v) (void)v
 #endif
 
-// get a 'line' from a buffer until `breakpoint` is reached and copies to 'out'
 typedef uint8_t bool;
 #define TRUE 1
 #define FALSE 0
@@ -69,6 +88,12 @@ typedef float float32;
 typedef double float64;
 typedef uintptr_t uintptr;
 
+typedef struct SAE_TimeStamp_t {
+  u64 seconds;
+  u64 microseconds;
+} SAE_TimeStamp;
+
+// get a 'line' from a buffer until `breakpoint` is reached and copies to 'out'
 // returns '0' if EOF (\0)
 // returns on success 'N' as number of ascii in the line
 // returns -1 if '__n' ascii is reached and breakpoint was not found
@@ -77,7 +102,7 @@ int __get_line(const ascii *buf, const ascii breakpoint, const size_t __n,
 
 /* FIX: [LINUX][PERIPHERAL] : Sometimes lines break on a random place of the
  * line, seems to be rare. Maybe somehow there is a '\n' on the middle of the
- * line ?? (RELATED TO /proc/bus/input/devices on linux)*/
+ * line ?? (RELATED TO /proc/bus/input/devices)*/
 
 typedef struct AsciiLine_t {
   ascii *line;

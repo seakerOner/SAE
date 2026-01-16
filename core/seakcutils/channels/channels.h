@@ -118,7 +118,7 @@ In exactly ONE source file:
 #endif
 
 // Channel lifecycle state.
-typedef enum ChanState_t ChanState;
+typedef enum ChanState_t { OPEN = 0, CLOSED = 1 } ChanState;
 
 /* Return codes */
 #define CHANNEL_OK 0
@@ -166,9 +166,7 @@ typedef struct Slot_t Slot;
 
 #endif // !CHANNELS_H
 
-#if (defined (CHANNEL_BASICS_IMPLEMENTATION))
-/* Channel state */
-typedef enum ChanState_t { OPEN = 0, CLOSED = 1 } ChanState;
+#if (defined(CHANNEL_BASICS_IMPLEMENTATION))
 
 typedef struct ConsumerCursor_t {
   alignas(CACHELINE_SIZE) _Atomic size_t tail;
@@ -186,4 +184,3 @@ typedef struct Slot_t {
 } Slot;
 
 #endif // !CHANNELS_H
-

@@ -11,6 +11,7 @@
 #if defined(__linux__)
 
 #include <errno.h>
+#include <linux/input-event-codes.h>
 #include <linux/input.h>
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -47,6 +48,18 @@ SAE_EventSystem sae_get_event_system(void) {
 #endif
 
   return event_sys;
+}
+
+ReceiverSpmc *sae_event_system_get_queue(SAE_EventSystem *event_sys) {
+  ReceiverSpmc *queue = spmc_get_receiver(event_sys->linux_epoll.chan_queue);
+  SAE_CHECK_ALLOC(queue, "Event System Queue Receiver")
+
+  return queue;
+}
+
+void sae_event_system_rmv_queue(ReceiverSpmc *queue) {
+  spmc_close_receiver(queue);
+  free(queue);
 }
 
 int sae_event_system_add_inputdevice(SAE_EventSystem *event_sys,
@@ -195,11 +208,11 @@ void sae_free_event_system(SAE_EventSystem event_sys) {
 }
 
 // must be set on a isolated thread
-void sae_event_system_execute(SAE_EventSystem event_sys) {
+void sae_event_system_execute(SAE_EventSystem *event_sys) {
 #if defined(__linux__)
-  int epoll_fd = event_sys.linux_epoll.epoll_fd;
-  SenderSpmc *dispatcher = event_sys.linux_epoll.dispatcher;
-  ChannelSpmc *chan_queue = event_sys.linux_epoll.chan_queue;
+  int epoll_fd = event_sys->linux_epoll.epoll_fd;
+  SenderSpmc *dispatcher = event_sys->linux_epoll.dispatcher;
+  ChannelSpmc *chan_queue = event_sys->linux_epoll.chan_queue;
 
   struct epoll_event events[SAE_LINUX_MAX_EPOLL_EVENTS];
   while (spmc_is_closed(chan_queue) == OPEN) {
@@ -221,26 +234,113 @@ void sae_event_system_execute(SAE_EventSystem event_sys) {
           b_read += read(i_device->linux_fd, &iev, sizeof(struct input_event));
         } while (b_read != sizeof(struct input_event));
 
+        // TODO: [LINUX][EVENTSYSTEM] since its in the stack and the channel
+        // copies the reference.. yeah FIX ME
         SAE_Event event;
+
         event.device_id = i_device->id;
-        event.timestamp = iev.time.tv_sec;
+        event.timestamp.seconds = iev.time.tv_sec;
+        event.timestamp.microseconds = iev.time.tv_usec;
 
         switch (iev.type) {
-          // keyboard
+          // key event (Could be a key from a keyboard, mouse, gamepad
         case EV_KEY:
 
-          // key event
+          // event type
           switch (iev.value) {
           case 0:
-            event.type = SAE_EVENT_KEY_UP;
+            if (iev.code >= 0x110 && iev.code <= 0x117)
+              event.type = SAE_EVENT_MOUSE_BUTTON_UP;
+            else if (iev.code >= 0x130 && iev.code <= 0x13e)
+              event.type = SAE_EVENT_GAMEPAD_BUTTON_UP;
+            else
+              event.type = SAE_EVENT_KEY_UP;
             break;
           case 1:
-            event.type = SAE_EVENT_KEY_DOWN;
+            if (iev.code >= 0x110 && iev.code <= 0x117)
+              event.type = SAE_EVENT_MOUSE_BUTTON_DOWN;
+            else if (iev.code >= 0x130 && iev.code <= 0x13e)
+              event.type = SAE_EVENT_GAMEPAD_BUTTON_DOWN;
+            else
+              event.type = SAE_EVENT_KEY_DOWN;
             break;
           }
 
-          // key event
           switch (iev.code) {
+            // mouse key event
+          case BTN_LEFT:
+            event.keypad.key = SAE_BTN_LEFT;
+            break;
+          case BTN_RIGHT:
+            event.keypad.key = SAE_BTN_RIGHT;
+            break;
+          case BTN_MIDDLE:
+            event.keypad.key = SAE_BTN_MIDDLE;
+            break;
+          case BTN_SIDE:
+            event.keypad.key = SAE_BTN_SIDE;
+            break;
+          case BTN_EXTRA:
+            event.keypad.key = SAE_BTN_EXTRA;
+            break;
+          case BTN_FORWARD:
+            event.keypad.key = SAE_BTN_FORWARD;
+            break;
+          case BTN_BACK:
+            event.keypad.key = SAE_BTN_BACK;
+            break;
+          case BTN_TASK:
+            event.keypad.key = SAE_BTN_TASK;
+            break;
+
+            // gamepad key event
+          case BTN_SOUTH:
+            event.keypad.key = SAE_BTN_SOUTH;
+            break;
+          case BTN_EAST:
+            event.keypad.key = SAE_BTN_EAST;
+            break;
+          case BTN_C:
+            event.keypad.key = SAE_BTN_C;
+            break;
+          case BTN_NORTH:
+            event.keypad.key = SAE_BTN_NORTH;
+            break;
+          case BTN_WEST:
+            event.keypad.key = SAE_BTN_WEST;
+            break;
+          case BTN_Z:
+            event.keypad.key = SAE_BTN_Z;
+            break;
+          case BTN_TL:
+            event.keypad.key = SAE_BTN_TL;
+            break;
+          case BTN_TR:
+            event.keypad.key = SAE_BTN_TR;
+            break;
+          case BTN_TL2:
+            event.keypad.key = SAE_BTN_TL2;
+            break;
+          case BTN_TR2:
+            event.keypad.key = SAE_BTN_TR2;
+            break;
+          case BTN_SELECT:
+            event.keypad.key = SAE_BTN_SELECT;
+            break;
+          case BTN_START:
+            event.keypad.key = SAE_BTN_START;
+            break;
+          case BTN_MODE:
+            event.keypad.key = SAE_BTN_MODE;
+            break;
+          case BTN_THUMBL:
+            event.keypad.key = SAE_BTN_THUMBL;
+            break;
+          case BTN_THUMBR:
+            event.keypad.key = SAE_BTN_THUMBR;
+            break;
+
+            // keyboard keys
           case KEY_ESC:
             event.keypad.key = SAE_KEY_ESC;
             break;
@@ -548,36 +648,49 @@ void sae_event_system_execute(SAE_EventSystem event_sys) {
             event.keypad.key = SAE_KEY_PAUSE;
             break;
           }
+          break;
 
-          // remove this, just a sanity check, very nice
-          switch (event.keypad.key) {
-          case SAE_KEY_H:
-            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
-            printf("[KEYPRESSED] H\n");
-            break;
-          case SAE_KEY_J:
-            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
-            printf("[KEYPRESSED] J\n");
-            break;
-          case SAE_KEY_K:
-            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
-            printf("[KEYPRESSED] K\n");
-            break;
-          case SAE_KEY_L:
-            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
-            printf("[KEYPRESSED] L\n");
-            break;
-          case SAE_KEY_LEFTCTRL:
-            printf("\n[TIMESTAMP] %ld\n", event.timestamp);
-            printf("[KEYPRESSED] LEFTCTRL\n");
-            break;
+          // GAMEPAD
+        case EV_ABS:
+          printf("EVENT FROM GAMEPAD\n");
+          break;
 
-          default:
-            break;
-          }
+          // MOUSE
+        case EV_REL:
+
+          printf("EVENT FROM MOUSE\n");
+          break;
 
         default:
           printf("OTHER EVENT HAPPENED\n");
+          break;
+        }
+
+        // Send SAE_Event to the queue
+        switch (spmc_send(dispatcher, &event)) {
+        case CHANNEL_OK:
+          break;
+
+          // These 2 will only happen on a race condition:
+          //
+          // - Since this loop stops when the channel is closed and the
+          // EventSystem on shutdown closes the dispatcher and the channel
+          // itself, this case will happen if the user frees the EventSystem and
+          // there is a cicle in this loop still yet to finish.
+          // - If so the last cicle will try to send the event to a closed
+          // channel or a closed dispatcher.
+          // - User must remove all InputDevices from the Event System before
+          // freeing the InputDevices
+        case CHANNEL_ERR_NULL:
+          SAE_ERROR("[WARNING] The Event System Dispatcher is NULL\n[TIP] You "
+                    "should remove all associated InputDevices from the Event "
+                    "System before closing the queue")
+          break;
+        case CHANNEL_ERR_CLOSED:
+          SAE_ERROR(
+              "[WARNING] The Event System Queue Channel is CLOSED\n[TIP] You "
+              "should remove all associated InputDevices from the Event "
+              "System before freeing the Event System)")
           break;
         }
       }
