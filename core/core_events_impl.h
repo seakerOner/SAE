@@ -36,13 +36,13 @@ SAE_EventSystem sae_get_event_system(void) {
   if (epoll < 0) {
     SAE_ERROR("[FATAL] Failed to create epoll instance for events system")
   }
-  event_sys.linux_epoll.epoll_fd = epoll;
+  event_sys.epoll_linux_fd = epoll;
 
   ChannelSpmc *chan = channel_create_spmc(5000, sizeof(SAE_Event));
   SAE_CHECK_ALLOC(chan, "Event System Channel Queue")
   SenderSpmc *dispatcher = spmc_get_sender(chan);
-  event_sys.linux_epoll.chan_queue = chan;
-  event_sys.linux_epoll.dispatcher = dispatcher;
+  event_sys.chan_queue = chan;
+  event_sys.dispatcher = dispatcher;
 
 #elif defined(_WIN64)
 #elif defined(__APPLE__) && defined(__MACH__)
@@ -54,7 +54,7 @@ SAE_EventSystem sae_get_event_system(void) {
 }
 
 ReceiverSpmc *sae_event_system_get_queue(SAE_EventSystem *event_sys) {
-  ReceiverSpmc *queue = spmc_get_receiver(event_sys->linux_epoll.chan_queue);
+  ReceiverSpmc *queue = spmc_get_receiver(event_sys->chan_queue);
   SAE_CHECK_ALLOC(queue, "Event System Queue Receiver")
 
   return queue;
@@ -76,7 +76,7 @@ int sae_event_system_add_inputdevice(SAE_EventSystem *event_sys,
   ev.events = EPOLLIN;
   ev.data.ptr = device;
 
-  int res = epoll_ctl(event_sys->linux_epoll.epoll_fd, EPOLL_CTL_ADD,
+  int res = epoll_ctl(event_sys->epoll_linux_fd, EPOLL_CTL_ADD,
                       device->linux_fd, &ev);
 
   if (res == -1) {
@@ -110,7 +110,7 @@ int sae_event_system_add_inputdevice_list(SAE_EventSystem *event_sys,
     ev.events = EPOLLIN;
     ev.data.ptr = input_device;
 
-    int res = epoll_ctl(event_sys->linux_epoll.epoll_fd, EPOLL_CTL_ADD,
+    int res = epoll_ctl(event_sys->epoll_linux_fd, EPOLL_CTL_ADD,
                         input_device->linux_fd, &ev);
     if (res == -1) {
       SAE_ERROR_ARGS(
@@ -141,7 +141,7 @@ int sae_event_system_rmv_inputdevice(SAE_EventSystem *event_sys,
   // but to avoid bugs with older kernel versions (Before Linux 2.6.9) we
   // provide a non-NULL ptr
   struct epoll_event ev;
-  int res = epoll_ctl(event_sys->linux_epoll.epoll_fd, EPOLL_CTL_DEL,
+  int res = epoll_ctl(event_sys->epoll_linux_fd, EPOLL_CTL_DEL,
                       device->linux_fd, &ev);
   if (res == -1) {
     SAE_ERROR_ARGS(
@@ -175,7 +175,7 @@ int sae_event_system_rmv_inputdevice_all(SAE_EventSystem *event_sys,
 #if defined(__linux__)
     InputDevice *device = (InputDevice *)node->elem;
     struct epoll_event ev;
-    int res = epoll_ctl(event_sys->linux_epoll.epoll_fd, EPOLL_CTL_DEL,
+    int res = epoll_ctl(event_sys->epoll_linux_fd, EPOLL_CTL_DEL,
                         device->linux_fd, &ev);
     if (res == -1) {
       SAE_ERROR_ARGS(
@@ -199,10 +199,10 @@ int sae_event_system_rmv_inputdevice_all(SAE_EventSystem *event_sys,
 
 void sae_free_event_system(SAE_EventSystem event_sys) {
 #if defined(__linux__)
-  close(event_sys.linux_epoll.epoll_fd);
-  spmc_close(event_sys.linux_epoll.chan_queue);
-  spmc_destroy(event_sys.linux_epoll.chan_queue);
-  free(event_sys.linux_epoll.dispatcher);
+  close(event_sys.epoll_linux_fd);
+  spmc_close(event_sys.chan_queue);
+  spmc_destroy(event_sys.chan_queue);
+  free(event_sys.dispatcher);
 #elif defined(_WIN64)
 #elif defined(__APPLE__) && defined(__MACH__)
 #else
@@ -213,9 +213,9 @@ void sae_free_event_system(SAE_EventSystem event_sys) {
 // must be set on a isolated thread
 void sae_event_system_execute(SAE_EventSystem *event_sys) {
 #if defined(__linux__)
-  int epoll_fd = event_sys->linux_epoll.epoll_fd;
-  SenderSpmc *dispatcher = event_sys->linux_epoll.dispatcher;
-  ChannelSpmc *chan_queue = event_sys->linux_epoll.chan_queue;
+  int epoll_fd = event_sys->epoll_linux_fd;
+  SenderSpmc *dispatcher = event_sys->dispatcher;
+  ChannelSpmc *chan_queue = event_sys->chan_queue;
 
   struct epoll_event events[SAE_LINUX_MAX_EPOLL_EVENTS];
   while (spmc_is_closed(chan_queue) == OPEN) {

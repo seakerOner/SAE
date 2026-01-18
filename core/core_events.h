@@ -59,20 +59,14 @@ typedef struct SAE_Event_t {
   };
 } SAE_Event;
 
-typedef union SAE_EventSystem_t {
-  struct {
-    int epoll_fd;
-    ChannelSpmc *chan_queue;
-    SenderSpmc *dispatcher;
-  } linux_epoll;
-
-  struct { // placeholder
-    void *epoll_handle;
-  } windows_epoll;
-
-  struct { // placeholder
-    void *epoll_handle;
-  } apple_epoll;
+typedef struct SAE_EventSystem_t {
+  ChannelSpmc *chan_queue;
+  SenderSpmc *dispatcher;
+  union {
+    int epoll_linux_fd;
+    void *epoll_win64_handle;
+    void *epoll_apple_handle;
+  };
 } SAE_EventSystem;
 
 SAE_EventSystem sae_get_event_system(void);
