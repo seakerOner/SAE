@@ -21,23 +21,28 @@
 typedef enum SAE_EventType_t {
   SAE_EVENT_KEY_DOWN,
   SAE_EVENT_KEY_UP,
-  SAE_EVENT_MOUSE_MOVE,
+
+  SAE_EVENT_MOUSE_MOVE_X,
+  SAE_EVENT_MOUSE_MOVE_Y,
+  SAE_EVENT_MOUSE_MOVE_X_ROT,
+  SAE_EVENT_MOUSE_MOVE_Y_ROT,
+
   SAE_EVENT_MOUSE_BUTTON_UP,
   SAE_EVENT_MOUSE_BUTTON_DOWN,
   SAE_EVENT_MOUSE_WHEEL,
+  SAE_EVENT_MOUSE_WHEEL_HI_RES,
+
   SAE_EVENT_GAMEPAD_LX_AXIS,
   SAE_EVENT_GAMEPAD_LY_AXIS,
   SAE_EVENT_GAMEPAD_RX_AXIS,
   SAE_EVENT_GAMEPAD_RY_AXIS,
+
   SAE_EVENT_GAMEPAD_BUTTON_UP,
   SAE_EVENT_GAMEPAD_BUTTON_DOWN,
+
   SAE_EVENT_DEVICE_ADDED,
   SAE_EVENT_DEVICE_REMOVED
 } SAE_EventType;
-
-typedef struct SAE_GamepPad_Axis_t {
-  u8 x, y;
-} SAE_GamepPad_Axis;
 
 typedef struct SAE_Event_t {
   SAE_EventType type;
@@ -50,11 +55,17 @@ typedef struct SAE_Event_t {
       u8 trigger_pressure;
     } keypad;
     struct {
-      i32 x, y;
-    } mouse_move;
+      union {
+        struct {
+          i32 x, y;
+        } move;
+        i8 wheel;
+      };
+    } mouse;
     struct {
-      SAE_GamepPad_Axis lstick_axis;
-      SAE_GamepPad_Axis rstick_axis;
+      union {
+        u8 x, y;
+      };
     } gamepad_axis;
   };
 } SAE_Event;
@@ -78,7 +89,8 @@ int sae_event_system_add_inputdevice(SAE_EventSystem *event_sys,
                                      InputDevice *device);
 
 int sae_event_system_add_inputdevice_list(SAE_EventSystem *event_sys,
-                                          InputDeviceList *device_list);
+                                          InputDeviceList *device_list,
+                                          u8 peri_types_flags);
 
 int sae_event_system_rmv_inputdevice(SAE_EventSystem *event_sys,
                                      InputDevice *device);
@@ -89,5 +101,8 @@ int sae_event_system_rmv_inputdevice_all(SAE_EventSystem *event_sys,
 void sae_free_event_system(SAE_EventSystem event_sys);
 
 void sae_event_system_execute(SAE_EventSystem *event_sys);
+
+// TODO: IMPLEMENT sae_get_mice_screen_coords()
+void sae_get_mice_screen_coords(i32 *x, i32 *y);
 
 #endif

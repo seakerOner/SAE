@@ -95,7 +95,8 @@ int sae_event_system_add_inputdevice(SAE_EventSystem *event_sys,
 }
 
 int sae_event_system_add_inputdevice_list(SAE_EventSystem *event_sys,
-                                          InputDeviceList *device_list) {
+                                          InputDeviceList *device_list,
+                                          u8 peri_type_flags) {
   if (!event_sys || !device_list)
     return -1;
 
@@ -104,10 +105,36 @@ int sae_event_system_add_inputdevice_list(SAE_EventSystem *event_sys,
   for (usize x = 0; x < ll_len(&device_list->devices); x += 1) {
     InputDevice *input_device = (InputDevice *)node->elem;
 
+    bool will_ignore = FALSE;
+    switch (input_device->type) {
+    case SAE_PERIPHERAL_T_KEYBOARD:
+      will_ignore =
+          !((peri_type_flags & SAE_PERIPHERAL_T_KEYBOARD) ? TRUE : FALSE);
+      break;
+    case SAE_PERIPHERAL_T_MOUSE:
+      will_ignore =
+          !((peri_type_flags & SAE_PERIPHERAL_T_MOUSE) ? TRUE : FALSE);
+      break;
+    case SAE_PERIPHERAL_T_GAMEPAD:
+      will_ignore =
+          !((peri_type_flags & SAE_PERIPHERAL_T_GAMEPAD) ? TRUE : FALSE);
+      break;
+    case SAE_PERIPHERAL_T_UNKNOWN:
+      will_ignore =
+          !((peri_type_flags & SAE_PERIPHERAL_T_UNKNOWN) ? TRUE : FALSE);
+      break;
+    }
+
+    if (will_ignore) {
+      node = ll_next(node);
+      continue;
+    };
+
 #if defined(__linux__)
 
     struct epoll_event ev;
     ev.events = EPOLLIN;
+
     ev.data.ptr = input_device;
 
     int res = epoll_ctl(event_sys->epoll_linux_fd, EPOLL_CTL_ADD,
@@ -744,20 +771,20 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
             // left stick axis
           case ABS_X:
             event.type = SAE_EVENT_GAMEPAD_LX_AXIS;
-            event.gamepad_axis.lstick_axis.x = iev.value;
+            event.gamepad_axis.x = iev.value;
             break;
           case ABS_Y:
             event.type = SAE_EVENT_GAMEPAD_LY_AXIS;
-            event.gamepad_axis.lstick_axis.y = iev.value;
+            event.gamepad_axis.y = iev.value;
             break;
             // right stick axis
           case ABS_RX:
             event.type = SAE_EVENT_GAMEPAD_RX_AXIS;
-            event.gamepad_axis.rstick_axis.x = iev.value;
+            event.gamepad_axis.x = iev.value;
             break;
           case ABS_RY:
             event.type = SAE_EVENT_GAMEPAD_RY_AXIS;
-            event.gamepad_axis.rstick_axis.y = iev.value;
+            event.gamepad_axis.y = iev.value;
             break;
           }
           break;
@@ -765,9 +792,42 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
           // MOUSE
         case EV_REL:
 
-          printf("EVENT FROM MOUSE\n");
+          switch (iev.code) {
+          // normal mouse axis
+          case REL_X:
+            event.type = SAE_EVENT_MOUSE_MOVE_X;
+            event.mouse.move.x = iev.value;
+            break;
+          case REL_Y:
+            event.type = SAE_EVENT_MOUSE_MOVE_Y;
+            event.mouse.move.y = iev.value;
+            break;
+
+          // for 3d mice/ motion controllers/ VR peripherals with rotational
+          // tracking
+          case REL_RX:
+            event.type = SAE_EVENT_MOUSE_MOVE_X_ROT;
+            event.mouse.move.x = iev.value;
+            break;
+          case REL_RY:
+            event.type = SAE_EVENT_MOUSE_MOVE_Y_ROT;
+            event.mouse.move.y = iev.value;
+            break;
+
+            // mouse wheel scroll up/down high res
+          case REL_WHEEL_HI_RES:
+            event.type = SAE_EVENT_MOUSE_WHEEL_HI_RES;
+            event.mouse.wheel = iev.value;
+            break;
+            // mouse wheel scroll up/down
+          case REL_WHEEL:
+            event.type = SAE_EVENT_MOUSE_WHEEL;
+            event.mouse.wheel = iev.value;
+            break;
+          }
           break;
 
+          // NOT DEFINED EVENTS
         default:
           printf("OTHER EVENT HAPPENED\n");
           break;

@@ -65,19 +65,24 @@ int main() {
   PeripheralDeviceList peri_list = sae_get_available_peripherals_list();
   print_peri_list(peri_list);
 
-  InputDeviceList input_list =
-      sae_peripheralslist_to_inputdeviceslist(&peri_list);
+  InputDeviceList input_list = sae_peripheralslist_to_inputdeviceslist(
+      &peri_list, SAE_PERIPHERAL_T_ALL_KNOWN);
 
   SAE_EventSystem ev_sys = sae_get_event_system();
 
   ReceiverSpmc *ev_queue = sae_event_system_get_queue(&ev_sys);
 
-  sae_event_system_add_inputdevice_list(&ev_sys, &input_list);
+  sae_event_system_add_inputdevice_list(&ev_sys, &input_list,
+                                        SAE_PERIPHERAL_T_ALL_KNOWN);
 
   JobHandle *event_sys_for_thread = job_spawn(set_events, &ev_sys);
   job_wait(event_sys_for_thread);
 
   int break_outof_queue = 0;
+
+  u8 gamepad_lx = 128, gamepad_ly = 128;
+  u8 gamepad_rx = 128, gamepad_ry = 128;
+
   while (1) {
     SAE_Event ev;
 
@@ -104,16 +109,45 @@ int main() {
         break;
 
       case SAE_EVENT_GAMEPAD_LX_AXIS:
-        printf("[LSTICK] X axis: %d\n", ev.gamepad_axis.lstick_axis.x);
+        gamepad_lx = ev.gamepad_axis.x;
+        printf("GAMEPAD LEFT  AXIS: [X]: %d | [Y]: %d\n", gamepad_lx,
+               gamepad_ly);
+        printf("GAMEPAD RIGHT AXIS: [X]: %d | [Y]: %d\n", gamepad_rx,
+               gamepad_ry);
         break;
       case SAE_EVENT_GAMEPAD_LY_AXIS:
-        printf("[LSTICK] Y axis: %d\n", ev.gamepad_axis.lstick_axis.y);
+        gamepad_ly = ev.gamepad_axis.y;
+        printf("GAMEPAD LEFT  AXIS: [X]: %d | [Y]: %d\n", gamepad_lx,
+               gamepad_ly);
+        printf("GAMEPAD RIGHT AXIS: [X]: %d | [Y]: %d\n", gamepad_rx,
+               gamepad_ry);
         break;
       case SAE_EVENT_GAMEPAD_RX_AXIS:
-        printf("[RSTICK] X axis: %d\n", ev.gamepad_axis.rstick_axis.x);
+        gamepad_rx = ev.gamepad_axis.x;
+        printf("GAMEPAD LEFT  AXIS: [X]: %d | [Y]: %d\n", gamepad_lx,
+               gamepad_ly);
+        printf("GAMEPAD RIGHT AXIS: [X]: %d | [Y]: %d\n", gamepad_rx,
+               gamepad_ry);
         break;
       case SAE_EVENT_GAMEPAD_RY_AXIS:
-        printf("[RSTICK] Y axis: %d\n", ev.gamepad_axis.rstick_axis.y);
+        gamepad_ry = ev.gamepad_axis.y;
+        printf("GAMEPAD LEFT  AXIS: [X]: %d | [Y]: %d\n", gamepad_lx,
+               gamepad_ly);
+        printf("GAMEPAD RIGHT AXIS: [X]: %d | [Y]: %d\n", gamepad_rx,
+               gamepad_ry);
+        break;
+
+      case SAE_EVENT_MOUSE_MOVE_X:
+        printf("[MOUSE][Y] %d\n", ev.mouse.move.x);
+        break;
+      case SAE_EVENT_MOUSE_MOVE_Y:
+        printf("[MOUSE][X AXIS] %d\n", ev.mouse.move.y);
+        break;
+      case SAE_EVENT_MOUSE_WHEEL:
+        printf("[MWHEEL] %d\n", ev.mouse.wheel);
+        break;
+      case SAE_EVENT_MOUSE_WHEEL_HI_RES:
+        printf("[MWHEEL_HI_RES] %d\n", ev.mouse.wheel);
         break;
       default:
         break;

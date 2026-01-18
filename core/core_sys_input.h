@@ -35,11 +35,15 @@
 
 typedef enum OS_Used_t { SAE_OS_LINUX, SAE_OS_WIN64, SAE_OS_APPLE } OS_Used;
 
+// Doesnt include type UNK
+#define SAE_PERIPHERAL_T_ALL_KNOWN 0x07
+#define SAE_PERIPHERAL_T_ALL 0x0F
+
 typedef enum PeripheralType_t {
-  SAE_PERIPHERAL_T_UNKNOWN = 1,
-  SAE_PERIPHERAL_T_KEYBOARD = 2,
-  SAE_PERIPHERAL_T_MOUSE = 3,
-  SAE_PERIPHERAL_T_GAMEPAD = 4,
+  SAE_PERIPHERAL_T_KEYBOARD = 0x01,
+  SAE_PERIPHERAL_T_MOUSE = 0x02,
+  SAE_PERIPHERAL_T_GAMEPAD = 0x04,
+  SAE_PERIPHERAL_T_UNKNOWN = 0x08,
 } PeripheralType;
 
 typedef struct _LinuxPeripheralDevice_t {
@@ -105,7 +109,8 @@ void sae_free_available_peripherals_list(PeripheralDeviceList);
 // Input Devices are file descriptors of the peripherals, they
 // are ready to be consumed by the Event System
 InputDeviceList
-sae_peripheralslist_to_inputdeviceslist(PeripheralDeviceList *peri_list);
+sae_peripheralslist_to_inputdeviceslist(PeripheralDeviceList *peri_list,
+                                        u8 peri_type_flags);
 
 int sae_free_input_device(InputDeviceList input_list, usize id);
 

@@ -388,53 +388,68 @@ void sae_free_available_peripherals_list(PeripheralDeviceList Plist) {
 }
 
 InputDeviceList
-sae_peripheralslist_to_inputdeviceslist(PeripheralDeviceList *peri_list) {
+sae_peripheralslist_to_inputdeviceslist(PeripheralDeviceList *peri_list,
+                                        u8 peri_type_flags) {
+
   InputDeviceList inputlist;
   inputlist.devices = linkedlist_new(sizeof(InputDevice));
 
   for (usize x = 0; x < peri_list->num_items; x += 1) {
     PeripheralDevice *peri = &peri_list->items[x];
 
-    if (peri->type == SAE_PERIPHERAL_T_UNKNOWN)
-      continue;
-
     InputDevice input;
     input.id = peri->id;
 
+    bool will_ignore = FALSE;
     switch (peri->type) {
     case SAE_PERIPHERAL_T_MOUSE:
+      will_ignore =
+          !((peri_type_flags & SAE_PERIPHERAL_T_MOUSE) ? TRUE : FALSE);
+      break;
     case SAE_PERIPHERAL_T_KEYBOARD:
+      will_ignore =
+          !((peri_type_flags & SAE_PERIPHERAL_T_KEYBOARD) ? TRUE : FALSE);
+      break;
     case SAE_PERIPHERAL_T_GAMEPAD:
-      input.type = peri->type;
+      will_ignore =
+          !((peri_type_flags & SAE_PERIPHERAL_T_GAMEPAD) ? TRUE : FALSE);
+      break;
+    case SAE_PERIPHERAL_T_UNKNOWN:
+      will_ignore =
+          !((peri_type_flags & SAE_PERIPHERAL_T_UNKNOWN) ? TRUE : FALSE);
+      break;
+    default:
+      SAE_ERROR("[ANOMALY] Foreign Type found when turning a Peripheral Device "
+                "into a Input Device\n[ANOMALY] Type must be a valid\n[TIP] If "
+                "you added a new peripheral type add it to the switch inside "
+                "this function and set `will_ignore` to FALSE"
+                "SAE_PERIPHERAL_T_xxx")
+      break;
+    }
+
+    if (will_ignore)
+      continue;
+
+    input.type = peri->type;
 
 #if defined(__linux__)
-      int fd = open((char *)peri->inner_peripheral.linux_p.event_path,
-                    O_RDONLY | O_NONBLOCK);
-      if (fd < 0) {
-        SAE_ERROR_ARGS(
-            "[FAILURE] Could not create a file descriptor for Input Device "
-            "from Peripheral Device\n[FAILURE] Invalid path: %.s",
-            peri->inner_peripheral.linux_p.event_path)
-      }
-      input.linux_fd = fd;
+    int fd = open((char *)peri->inner_peripheral.linux_p.event_path,
+                  O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+      SAE_ERROR_ARGS(
+          "[FAILURE] Could not create a file descriptor for Input Device "
+          "from Peripheral Device\n[FAILURE] Invalid path: %.s",
+          peri->inner_peripheral.linux_p.event_path)
+    }
+    input.linux_fd = fd;
 
-      ll_append(&inputlist.devices, &input);
+    ll_append(&inputlist.devices, &input);
 
 #elif defined(_WIN64)
 #elif defined(__APPLE__) && defined(__MACH__)
 #else
 #error "Unsupported operating system... :/"
 #endif
-      break;
-
-    default:
-      SAE_ERROR("[ANOMALY] Foreign Type found when turning a Peripheral Device "
-                "into a Input Device\n[ANOMALY] Type must be a valid\n[TIP] If "
-                "you added a new peripheral type add it to the switch inside "
-                "this function"
-                "SAE_PERIPHERAL_T_xxx")
-      break;
-    }
   }
 
   return inputlist;
