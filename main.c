@@ -63,7 +63,7 @@ int main() {
   job_scheduler_spawn(pool);
 
   PeripheralDeviceList peri_list = sae_get_available_peripherals_list();
-  // print_peri_list(peri_list);
+  print_peri_list(peri_list);
 
   InputDeviceList input_list =
       sae_peripheralslist_to_inputdeviceslist(&peri_list);
@@ -102,45 +102,69 @@ int main() {
       case SAE_EVENT_GAMEPAD_BUTTON_DOWN:
         printf("\n[GAMEPADBUTTONDOWN]\n");
         break;
+
+      case SAE_EVENT_GAMEPAD_LX_AXIS:
+        printf("[LSTICK] X axis: %d\n", ev.gamepad_axis.lstick_axis.x);
+        break;
+      case SAE_EVENT_GAMEPAD_LY_AXIS:
+        printf("[LSTICK] Y axis: %d\n", ev.gamepad_axis.lstick_axis.y);
+        break;
+      case SAE_EVENT_GAMEPAD_RX_AXIS:
+        printf("[RSTICK] X axis: %d\n", ev.gamepad_axis.rstick_axis.x);
+        break;
+      case SAE_EVENT_GAMEPAD_RY_AXIS:
+        printf("[RSTICK] Y axis: %d\n", ev.gamepad_axis.rstick_axis.y);
+        break;
       default:
         break;
       }
 
       switch (ev.keypad.key) {
+
       case SAE_KEY_H:
-        printf("[TIMESTAMP] %ld:%ld\n", ev.timestamp.seconds,
+        printf("[TIMESTAMP] %ld:%ld ", ev.timestamp.seconds,
                ev.timestamp.microseconds);
-        printf("[KEYPRESSED] H\n");
+        printf("[KEY] H\n");
         break;
       case SAE_KEY_J:
-        printf("[TIMESTAMP] %ld:%ld\n", ev.timestamp.seconds,
+        printf("[TIMESTAMP] %ld:%ld ", ev.timestamp.seconds,
                ev.timestamp.microseconds);
-        printf("[KEYPRESSED] J\n");
+        printf("[KEY] J\n");
         break;
       case SAE_KEY_K:
-        printf("[TIMESTAMP] %ld:%ld\n", ev.timestamp.seconds,
+        printf("[TIMESTAMP] %ld:%ld ", ev.timestamp.seconds,
                ev.timestamp.microseconds);
-        printf("[KEYPRESSED] K\n");
+        printf("[KEY] K\n");
         break;
       case SAE_KEY_L:
-        printf("[TIMESTAMP] %ld:%ld\n", ev.timestamp.seconds,
+        printf("[TIMESTAMP] %ld:%ld ", ev.timestamp.seconds,
                ev.timestamp.microseconds);
-        printf("[KEYPRESSED] L\n");
+        printf("[KEY] L\n");
         break;
       case SAE_KEY_LEFTCTRL:
-        printf("[TIMESTAMP] %ld:%ld\n", ev.timestamp.seconds,
+        printf("[TIMESTAMP] %ld:%ld ", ev.timestamp.seconds,
                ev.timestamp.microseconds);
-        printf("[KEYPRESSED] LEFTCTRL\n");
+        printf("[KEY] LEFTCTRL\n");
         break;
       case SAE_BTN_NORTH:
-        printf("[TIMESTAMP] %ld:%ld\n", ev.timestamp.seconds,
+        printf("[TIMESTAMP] %ld:%ld ", ev.timestamp.seconds,
                ev.timestamp.microseconds);
-        printf("[KEYPRESSED] GAMEPAD TRIANGLE\n");
+        printf("[KEY] GAMEPAD TRIANGLE\n");
+        break;
+      case SAE_BTN_DPAD_DOWN:
+        printf("[TIMESTAMP] %ld:%ld ", ev.timestamp.seconds,
+               ev.timestamp.microseconds);
+        printf("[KEY] GAMEPAD DOWN KEY\n");
+        break;
+      case SAE_BTN_TL2:
+        printf("[TIMESTAMP] %ld:%ld ", ev.timestamp.seconds,
+               ev.timestamp.microseconds);
+        printf("[KEY] GAMEPAD LOWER LEFT TRIGGER\n[PRESSURE] %d\n",
+               ev.keypad.trigger_pressure);
         break;
       case SAE_KEY_P:
         printf("BREAKING LOOP!!!!\n");
         break_outof_queue = 1;
-        sae_event_system_rmv_queue(ev_queue);
         break;
 
         // "UNKNOWN KEYBOARD KEY"
@@ -153,6 +177,7 @@ int main() {
       break;
   }
 
+  sae_event_system_rmv_queue(ev_queue);
   sae_event_system_rmv_inputdevice_all(&ev_sys, &input_list);
   sae_free_input_devices_list(input_list);
   sae_free_available_peripherals_list(peri_list);

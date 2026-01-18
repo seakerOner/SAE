@@ -16,6 +16,9 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#define RELEASED 0
+#define PRESSED 1
+
 #define SAE_LINUX_MAX_EPOLL_EVENTS 64
 
 #elif defined(_WIN64)
@@ -234,8 +237,6 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
           b_read += read(i_device->linux_fd, &iev, sizeof(struct input_event));
         } while (b_read != sizeof(struct input_event));
 
-        // TODO: [LINUX][EVENTSYSTEM] since its in the stack and the channel
-        // copies the reference.. yeah FIX ME
         SAE_Event event;
 
         event.device_id = i_device->id;
@@ -248,18 +249,20 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
 
           // event type
           switch (iev.value) {
-          case 0:
+          case RELEASED:
             if (iev.code >= 0x110 && iev.code <= 0x117)
               event.type = SAE_EVENT_MOUSE_BUTTON_UP;
-            else if (iev.code >= 0x130 && iev.code <= 0x13e)
+            else if ((iev.code >= 0x130 && iev.code <= 0x13e) ||
+                     (iev.code >= 0x220 && iev.code <= 0x223))
               event.type = SAE_EVENT_GAMEPAD_BUTTON_UP;
             else
               event.type = SAE_EVENT_KEY_UP;
             break;
-          case 1:
+          case PRESSED:
             if (iev.code >= 0x110 && iev.code <= 0x117)
               event.type = SAE_EVENT_MOUSE_BUTTON_DOWN;
-            else if (iev.code >= 0x130 && iev.code <= 0x13e)
+            else if ((iev.code >= 0x130 && iev.code <= 0x13e) ||
+                     (iev.code >= 0x220 && iev.code <= 0x223))
               event.type = SAE_EVENT_GAMEPAD_BUTTON_DOWN;
             else
               event.type = SAE_EVENT_KEY_DOWN;
@@ -338,6 +341,18 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
             break;
           case BTN_THUMBR:
             event.keypad.key = SAE_BTN_THUMBR;
+            break;
+          case BTN_DPAD_UP:
+            event.keypad.key = SAE_BTN_DPAD_UP;
+            break;
+          case BTN_DPAD_DOWN:
+            event.keypad.key = SAE_BTN_DPAD_DOWN;
+            break;
+          case BTN_DPAD_LEFT:
+            event.keypad.key = SAE_BTN_DPAD_LEFT;
+            break;
+          case BTN_DPAD_RIGHT:
+            event.keypad.key = SAE_BTN_DPAD_RIGHT;
             break;
 
             // keyboard keys
@@ -653,6 +668,98 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
           // GAMEPAD
         case EV_ABS:
           printf("EVENT FROM GAMEPAD\n");
+
+          // event type
+          switch (iev.value) {
+          case RELEASED:
+            if (iev.code == ABS_HAT0X || iev.code == ABS_HAT0Y ||
+                iev.code == ABS_HAT1X || iev.code == ABS_HAT2X ||
+                iev.code == ABS_HAT1Y || iev.code == ABS_HAT2Y)
+              event.type = SAE_EVENT_GAMEPAD_BUTTON_UP;
+            break;
+          case PRESSED:
+            if (iev.code == ABS_HAT0X || iev.code == ABS_HAT0Y ||
+                iev.code == ABS_HAT1X || iev.code == ABS_HAT2X ||
+                iev.code == ABS_HAT1Y || iev.code == ABS_HAT2Y)
+              event.type = SAE_EVENT_GAMEPAD_BUTTON_DOWN;
+            break;
+          }
+
+          switch (iev.code) {
+
+          // Some gamepads show the left side directional buttons as analog
+          // buttons (ABS_HAT0X, ABS_HAT0Y)
+          //
+          // ref: <https://www.kernel.org/doc/Documentation/input/gamepad.txt>
+          case ABS_HAT0X:
+            switch (iev.value) {
+            case -1:
+              event.keypad.key = SAE_BTN_DPAD_LEFT;
+              break;
+            case 0:
+              event.keypad.key = SAE_BTN_DPAD_CENTER;
+              break;
+            case 1:
+              event.keypad.key = SAE_BTN_DPAD_RIGHT;
+              break;
+            }
+            break;
+          case ABS_HAT0Y:
+            switch (iev.value) {
+            case -1:
+              event.keypad.key = SAE_BTN_DPAD_UP;
+              break;
+            case 0:
+              event.keypad.key = SAE_BTN_DPAD_CENTER;
+              break;
+            case 1:
+              event.keypad.key = SAE_BTN_DPAD_DOWN;
+              break;
+            default:
+              break;
+            }
+            break;
+            // analog trigger buttons
+            //
+            // TODO: The analog version gives the trigger_pressure value,
+            // something that a user may want and the logical inputs dont give.
+            // Also, some gamepads give both logical and analog capabilities.
+          case ABS_HAT1X: // right side, top trigger
+            event.keypad.key = SAE_BTN_TL;
+            event.keypad.trigger_pressure = iev.value;
+            break;
+          case ABS_HAT2X: // right side, lower trigger
+            event.keypad.key = SAE_BTN_TL2;
+            event.keypad.trigger_pressure = iev.value;
+            break;
+          case ABS_HAT1Y: // left side, top trigger
+            event.keypad.key = SAE_BTN_TR;
+            event.keypad.trigger_pressure = iev.value;
+            break;
+          case ABS_HAT2Y: // left side, lower trigger
+            event.keypad.key = SAE_BTN_TR2;
+            event.keypad.trigger_pressure = iev.value;
+            break;
+
+            // left stick axis
+          case ABS_X:
+            event.type = SAE_EVENT_GAMEPAD_LX_AXIS;
+            event.gamepad_axis.lstick_axis.x = iev.value;
+            break;
+          case ABS_Y:
+            event.type = SAE_EVENT_GAMEPAD_LY_AXIS;
+            event.gamepad_axis.lstick_axis.y = iev.value;
+            break;
+            // right stick axis
+          case ABS_RX:
+            event.type = SAE_EVENT_GAMEPAD_RX_AXIS;
+            event.gamepad_axis.rstick_axis.x = iev.value;
+            break;
+          case ABS_RY:
+            event.type = SAE_EVENT_GAMEPAD_RY_AXIS;
+            event.gamepad_axis.rstick_axis.y = iev.value;
+            break;
+          }
           break;
 
           // MOUSE

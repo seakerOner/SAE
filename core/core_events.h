@@ -25,12 +25,19 @@ typedef enum SAE_EventType_t {
   SAE_EVENT_MOUSE_BUTTON_UP,
   SAE_EVENT_MOUSE_BUTTON_DOWN,
   SAE_EVENT_MOUSE_WHEEL,
-  SAE_EVENT_GAMEPAD_AXIS,
+  SAE_EVENT_GAMEPAD_LX_AXIS,
+  SAE_EVENT_GAMEPAD_LY_AXIS,
+  SAE_EVENT_GAMEPAD_RX_AXIS,
+  SAE_EVENT_GAMEPAD_RY_AXIS,
   SAE_EVENT_GAMEPAD_BUTTON_UP,
   SAE_EVENT_GAMEPAD_BUTTON_DOWN,
   SAE_EVENT_DEVICE_ADDED,
   SAE_EVENT_DEVICE_REMOVED
 } SAE_EventType;
+
+typedef struct SAE_GamepPad_Axis_t {
+  u8 x, y;
+} SAE_GamepPad_Axis;
 
 typedef struct SAE_Event_t {
   SAE_EventType type;
@@ -40,13 +47,14 @@ typedef struct SAE_Event_t {
   union {
     struct {
       SAE_Key key;
+      u8 trigger_pressure;
     } keypad;
     struct {
-      i32 dx, dy;
+      i32 x, y;
     } mouse_move;
     struct {
-      u8 axis;
-      float32 value;
+      SAE_GamepPad_Axis lstick_axis;
+      SAE_GamepPad_Axis rstick_axis;
     } gamepad_axis;
   };
 } SAE_Event;
