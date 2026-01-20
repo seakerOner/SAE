@@ -11,11 +11,11 @@ WAYLAND_FLAG =
 OPENGL_FLAG = 
 
 # Detect X11 or Wayland (Linux only)
-ifeq ($(shell echo $$XDG_SESSION_TYPE), x11)
+ifeq ($(shell echo $XDG_SESSION_TYPE), x11)
 	X11 ?= 1
 endif
 
-ifeq ($(shell echo $$XDG_SESSION_TYPE), wayland)
+ifeq ($(shell echo $XDG_SESSION_TYPE), wayland)
 	WAYLAND ?= 1
 endif
 
@@ -35,13 +35,14 @@ ifeq ($(OPENGL), 1)
 	OPENGL_FLAG = -lGL
 endif
 
+BASE_FLAGS = -Wall -Wextra $(DEBUG_FLAG)
 
-FLAGS = -Wall -Wextra $(DEBUG_FLAG) $(X11_FLAG) $(WAYLAND_FLAG) $(OPENGL_FLAG)
+FLAGS = $(X11_FLAG) $(WAYLAND_FLAG) $(OPENGL_FLAG)
 
 BUILD = ./build/
 
 exec: main.c
-	$(CC) $(FLAGS) main.c -o $(BUILD)exec
+	$(CC) $(BASE_FLAGS) main.c $(FLAGS) -o $(BUILD)exec
 
 run:
 	make
@@ -57,7 +58,7 @@ runsudo:
 	sudo $(BUILD)exec
 	
 runsudo OPENGL:
-	make OPENGL=1
+	make OPENGL=1 X11=1
 	@echo "Compiled with OPENGL (X11/WAYLAND enabled by default on Linux)!!"
 	@echo "Running with sudo permissions!"
 	@echo " "
@@ -73,7 +74,7 @@ clean:
 
 examples example_input_event_system:
 	@echo "Compiling: input_event_system_example..."
-	$(CC) $(FLAGS) ./examples/example_input_event_system.c -o $(BUILD)input_event_system_example
+	$(CC) $(BASE_FLAGS) ./examples/example_input_event_system.c -o $(BUILD)input_event_system_example
 	@echo "Compiled!!"
 	@echo "Running with sudo permissions!"
 	@echo " "

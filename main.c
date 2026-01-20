@@ -3,184 +3,30 @@
 #define SAE_DEBUG 1
 #define SAE_TRACER 1
 
-// includes
-#include "./sae_input_list_names.h"
-
-#include "./core/core_base.h"
-#include "./core/core_base_impl.h"
-
-#include "./core/core_sys_input.h"
-#include "./core/core_sys_input_impl.h"
-
-#include "./core/core_events.h"
-#include "./core/core_events_impl.h"
-
-#include "./core/seakcutils/arenas/r_arena.h"
-#include "./core/seakcutils/channels/mpmc.h"
-#include "./core/seakcutils/job_system/jobsystem.h"
-#include "./core/seakcutils/threadpool/threadpool.h"
-
 #include <stdio.h>
 
-void set_events(void *event_sys) {
-  SAE_EventSystem *ev_sys = (SAE_EventSystem *)event_sys;
-
-  sae_event_system_execute(ev_sys);
-}
-
-void print_ev_keypress(SAE_EventType ev_t) {
-  switch (ev_t) {
-  case SAE_EVENT_KEY_UP:
-    printf("[KEYUP]\n");
-    break;
-  case SAE_EVENT_KEY_DOWN:
-    printf("[KEYDOWN]\n");
-    break;
-  case SAE_EVENT_KEY_DOWN_REPEAT:
-    printf("[KEYDOWN][REPEATED]\n");
-    break;
-  case SAE_EVENT_MOUSE_BUTTON_UP:
-    printf("[MOUSEBUTTONUP]\n");
-    break;
-  case SAE_EVENT_MOUSE_BUTTON_DOWN:
-    printf("[MOUSEBUTTONDOWN]\n");
-    break;
-  case SAE_EVENT_GAMEPAD_BUTTON_UP:
-    printf("[GAMEPADBUTTONUP]\n");
-    break;
-  case SAE_EVENT_GAMEPAD_BUTTON_DOWN:
-    printf("[GAMEPADBUTTONDOWN]\n");
-    break;
-  default:
-    break;
-  }
-}
+#define RGFW_IMPLEMENTATION
+#define RGFW_DEBUG 1
+//#define RGFW_EXPORT
+//#define RGFW_IMPORT
+#include "./core/RGFW-1.8.1/RGFW.h"
+#include <GL/gl.h>
 
 int main() {
-  ThreadPool *pool = threadpool_init_for_scheduler(4);
+  RGFW_window *win = RGFW_createWindow("name", 100, 100, 500, 500, (u64)0);
+  RGFW_event event;
 
-  job_scheduler_spawn(pool);
+  RGFW_window_setExitKey(win, RGFW_escape);
+  RGFW_window_setIcon(win, NULL, 3, 3, RGFW_formatRGBA8);
 
-  PeripheralDeviceList peri_list = sae_get_available_peripherals_list();
-  InputDeviceList input_list = sae_peripheralslist_to_inputdeviceslist(
-      &peri_list, SAE_PERIPHERAL_T_ALL_KNOWN);
-
-  SAE_EventSystem ev_sys = sae_get_event_system();
-  sae_event_system_add_inputdevice_list(&ev_sys, &input_list,
-                                        SAE_PERIPHERAL_T_ALL_KNOWN);
-
-  ReceiverSpmc *ev_queue = sae_event_system_get_queue(&ev_sys);
-  JobHandle *event_sys_for_thread = job_spawn(set_events, &ev_sys);
-
-  job_wait(event_sys_for_thread);
-
-  int break_outof_queue = 0;
-
-  u8 gamepad_lx = 128, gamepad_ly = 128;
-  u8 gamepad_rx = 128, gamepad_ry = 128;
-
-  while (TRUE) {
-    SAE_Event ev = {0};
-
-    while (spmc_try_recv(ev_queue, &ev) == CHANNEL_OK) {
-
-      switch (ev.type) {
-      case SAE_EVENT_GAMEPAD_LX_AXIS:
-        gamepad_lx = ev.gamepad_axis.x;
-        printf("GAMEPAD LEFT  AXIS: [X]: %d | [Y]: %d\n", gamepad_lx,
-               gamepad_ly);
-        printf("GAMEPAD RIGHT AXIS: [X]: %d | [Y]: %d\n", gamepad_rx,
-               gamepad_ry);
+  while (RGFW_window_shouldClose(win) == RGFW_FALSE) {
+    while (RGFW_window_checkEvent(win, &event)) {
+      if (event.type == RGFW_quit)
         break;
-      case SAE_EVENT_GAMEPAD_LY_AXIS:
-        gamepad_ly = ev.gamepad_axis.y;
-        printf("GAMEPAD LEFT  AXIS: [X]: %d | [Y]: %d\n", gamepad_lx,
-               gamepad_ly);
-        printf("GAMEPAD RIGHT AXIS: [X]: %d | [Y]: %d\n", gamepad_rx,
-               gamepad_ry);
-        break;
-      case SAE_EVENT_GAMEPAD_RX_AXIS:
-        gamepad_rx = ev.gamepad_axis.x;
-        printf("GAMEPAD LEFT  AXIS: [X]: %d | [Y]: %d\n", gamepad_lx,
-               gamepad_ly);
-        printf("GAMEPAD RIGHT AXIS: [X]: %d | [Y]: %d\n", gamepad_rx,
-               gamepad_ry);
-        break;
-      case SAE_EVENT_GAMEPAD_RY_AXIS:
-        gamepad_ry = ev.gamepad_axis.y;
-        printf("GAMEPAD LEFT  AXIS: [X]: %d | [Y]: %d\n", gamepad_lx,
-               gamepad_ly);
-        printf("GAMEPAD RIGHT AXIS: [X]: %d | [Y]: %d\n", gamepad_rx,
-               gamepad_ry);
-        break;
-
-      case SAE_EVENT_MOUSE_MOVE_X:
-        printf("[MOUSE][Y] %d\n", ev.mouse.move.x);
-        break;
-      case SAE_EVENT_MOUSE_MOVE_Y:
-        printf("[MOUSE][X AXIS] %d\n", ev.mouse.move.y);
-        break;
-      case SAE_EVENT_MOUSE_WHEEL:
-        printf("[MWHEEL] %d\n", ev.mouse.wheel);
-        break;
-      default:
-        break;
-      }
-
-      switch (ev.keypad.key) {
-
-      case SAE_KEY_H:
-        printf("[KEY] H\n");
-        print_ev_keypress(ev.type);
-        break;
-      case SAE_KEY_J:
-        printf("[KEY] J\n");
-        print_ev_keypress(ev.type);
-        break;
-      case SAE_KEY_K:
-        printf("[KEY] K\n");
-        print_ev_keypress(ev.type);
-        break;
-      case SAE_KEY_L:
-        printf("[KEY] L\n");
-        print_ev_keypress(ev.type);
-        break;
-      case SAE_KEY_LEFTCTRL:
-        printf("[KEY] LEFTCTRL\n");
-        print_ev_keypress(ev.type);
-        break;
-      case SAE_BTN_NORTH:
-        printf("[KEY] GAMEPAD TRIANGLE\n");
-        print_ev_keypress(ev.type);
-        break;
-      case SAE_BTN_DPAD_DOWN:
-        printf("[KEY] GAMEPAD DOWN KEY\n");
-        print_ev_keypress(ev.type);
-        break;
-      case SAE_BTN_TL2:
-        printf("[KEY] GAMEPAD LOWER LEFT TRIGGER\n[PRESSURE] %d\n",
-               ev.keypad.trigger_pressure);
-        print_ev_keypress(ev.type);
-        break;
-      case SAE_KEY_P:
-        printf("BREAKING LOOP!!!!\n");
-        break_outof_queue = 1;
-        break;
-
-      default:
-        break;
-      }
-      fflush(stdout);
     }
-
-    if (break_outof_queue)
-      break;
   }
 
-  sae_event_system_rmv_inputdevice_all(&ev_sys, &input_list);
-  sae_event_system_rmv_queue(ev_queue);
-  sae_free_input_devices_list(input_list);
-  sae_free_available_peripherals_list(peri_list);
-  sae_free_event_system(ev_sys);
+  RGFW_window_close(win);
+
   return 0;
 }
