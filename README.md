@@ -17,10 +17,27 @@ and laying the foundation for rendering and game logic.
 - Entity system planned
 - Minimalist core with extensibility in mind
 
+# Examples
+
+- Examples of usability will be added as more functionality is estabilished.
+- **To run an example** simply do:
+
+```bash
+make examples NAME_OF_FILE.c
+```
+
 # Dependencies
 
-SEAKCUTILS — general utility library
+## SEAKCUTILS — general utility library
+
+A collection of low-level, performance-oriented utilities written in C, designed to be reused across my own systems projects.
 <https://github.com/seakerOner/seakcutils>
+
+## RGFW -  A cross platform lightweight single-header window abstraction library for creating graphical programs or libraries.
+
+RGFW is a focused general windowing framework for creating and handling windows and graphics contexts.
+The API is a mix between GLFW and SDL while maintaining a minminalistic and easy to modify implementation.
+<https://github.com/ColleagueRiley/RGFW>
 
 # Status
 

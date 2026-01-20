@@ -18,6 +18,7 @@
 
 #define RELEASED 0
 #define PRESSED 1
+#define REPEAT 2
 
 #define SAE_LINUX_MAX_EPOLL_EVENTS 64
 
@@ -36,9 +37,10 @@ SAE_EventSystem sae_get_event_system(void) {
   if (epoll < 0) {
     SAE_ERROR("[FATAL] Failed to create epoll instance for events system")
   }
+
   event_sys.epoll_linux_fd = epoll;
 
-  ChannelSpmc *chan = channel_create_spmc(5000, sizeof(SAE_Event));
+  ChannelSpmc *chan = channel_create_spmc(1000, sizeof(SAE_Event));
   SAE_CHECK_ALLOC(chan, "Event System Channel Queue")
   SenderSpmc *dispatcher = spmc_get_sender(chan);
   event_sys.chan_queue = chan;
@@ -122,6 +124,8 @@ int sae_event_system_add_inputdevice_list(SAE_EventSystem *event_sys,
     case SAE_PERIPHERAL_T_UNKNOWN:
       will_ignore =
           !((peri_type_flags & SAE_PERIPHERAL_T_UNKNOWN) ? TRUE : FALSE);
+      break;
+    default:
       break;
     }
 
@@ -265,6 +269,7 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
         } while (b_read != sizeof(struct input_event));
 
         SAE_Event event;
+        memset(&event, 0, sizeof(event));
 
         event.device_id = i_device->id;
         event.timestamp.seconds = iev.time.tv_sec;
@@ -293,6 +298,11 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
               event.type = SAE_EVENT_GAMEPAD_BUTTON_DOWN;
             else
               event.type = SAE_EVENT_KEY_DOWN;
+            break;
+          case REPEAT:
+            event.type = SAE_EVENT_KEY_DOWN_REPEAT;
+            break;
+          default:
             break;
           }
 
@@ -689,13 +699,13 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
           case KEY_PAUSE:
             event.keypad.key = SAE_KEY_PAUSE;
             break;
+          default:
+            break;
           }
           break;
 
           // GAMEPAD
         case EV_ABS:
-          printf("EVENT FROM GAMEPAD\n");
-
           // event type
           switch (iev.value) {
           case RELEASED:
@@ -709,6 +719,8 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
                 iev.code == ABS_HAT1X || iev.code == ABS_HAT2X ||
                 iev.code == ABS_HAT1Y || iev.code == ABS_HAT2Y)
               event.type = SAE_EVENT_GAMEPAD_BUTTON_DOWN;
+            break;
+          default:
             break;
           }
 
@@ -729,6 +741,8 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
             case 1:
               event.keypad.key = SAE_BTN_DPAD_RIGHT;
               break;
+            default:
+              break;
             }
             break;
           case ABS_HAT0Y:
@@ -748,9 +762,10 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
             break;
             // analog trigger buttons
             //
-            // TODO: The analog version gives the trigger_pressure value,
-            // something that a user may want and the logical inputs dont give.
-            // Also, some gamepads give both logical and analog capabilities.
+            // TODO: [LINUX][EVENT] The analog version gives the
+            // trigger_pressure value, something that a user may want and the
+            // logical inputs dont give. Also, some gamepads give both logical
+            // and analog capabilities.
           case ABS_HAT1X: // right side, top trigger
             event.keypad.key = SAE_BTN_TL;
             event.keypad.trigger_pressure = iev.value;
@@ -785,6 +800,8 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
           case ABS_RY:
             event.type = SAE_EVENT_GAMEPAD_RY_AXIS;
             event.gamepad_axis.y = iev.value;
+            break;
+          default:
             break;
           }
           break;
@@ -824,12 +841,13 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
             event.type = SAE_EVENT_MOUSE_WHEEL;
             event.mouse.wheel = iev.value;
             break;
+          default:
+            break;
           }
           break;
 
           // NOT DEFINED EVENTS
         default:
-          printf("OTHER EVENT HAPPENED\n");
           break;
         }
 
@@ -858,6 +876,8 @@ void sae_event_system_execute(SAE_EventSystem *event_sys) {
               "[WARNING] The Event System Queue Channel is CLOSED\n[TIP] You "
               "should remove all associated InputDevices from the Event "
               "System before freeing the Event System)")
+          break;
+        default:
           break;
         }
       }

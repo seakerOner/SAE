@@ -20,6 +20,7 @@
 
 typedef enum SAE_EventType_t {
   SAE_EVENT_KEY_DOWN,
+  SAE_EVENT_KEY_DOWN_REPEAT,
   SAE_EVENT_KEY_UP,
 
   SAE_EVENT_MOUSE_MOVE_X,
@@ -102,7 +103,7 @@ void sae_free_event_system(SAE_EventSystem event_sys);
 
 void sae_event_system_execute(SAE_EventSystem *event_sys);
 
-// TODO: IMPLEMENT sae_get_mice_screen_coords()
+// TODO: [ALL][EVENTS] IMPLEMENT sae_get_mice_screen_coords()
 void sae_get_mice_screen_coords(i32 *x, i32 *y);
 
 #endif
